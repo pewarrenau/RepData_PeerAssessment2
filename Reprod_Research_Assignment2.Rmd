@@ -1,0 +1,38 @@
+---
+title: "Reproducible Research Assignment 2"
+author: "Peter Warren"
+date: "Saturday, November 22, 2014"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Synopsis
+Here I write a brief summary of the analysis. What did I find?
+
+## Data Processing
+How I loaded the data. Did I do anything to tidy it up?
+This is me loading the dataset
+
+```{r echo = TRUE}
+
+fileHandle <- "repdata-data-StormData.csv.bz2"
+stormData <-read.csv(bzfile(fileHandle), header= TRUE, stringsAsFactors = TRUE )
+
+```
+
+## Results
+
+
+
+
+
+You can also embed plots, for example:
+
+```{r, echo = TRUE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
