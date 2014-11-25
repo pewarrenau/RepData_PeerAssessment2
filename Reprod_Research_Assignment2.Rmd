@@ -1,157 +1,285 @@
 ---
-title: "Reproducible Research Assignment 2"
+title: "Analysis of NOCA storm data to determine the leading event causes of human and financial impact"
 author: "Peter Warren"
 date: "Saturday, November 22, 2014"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
 ## Synopsis
-Here I write a brief summary of the analysis. What did I find?
+The National Oceanic and Atmospheric Administration maintain a storm database, which collects a range of data describing the impact from different types of natural events. This analysis reviews both the financial and human impact attributed to different event type. 
+
+The data suggests large proportions of the financial and human impact from natural events are the result of a disproportionately small number of event types. The leading contributors to financial damage are Floods, hurricanes/typhoons and tornadoes account. While the single largest cause of injuries and fatalities are tornadoes.
+
 
 ## Data Processing
-How I loaded the data. Did I do anything to tidy it up?
-
 ### Load required Librarys
-The following library were used to analysis the data and produce this report. Hence, they must be loaded first.
 
-```{r echo = TRUE}
-library(knitr)
-#library(rmarkdown)
+The following librarys are used to analysis the data and produce this report. Hence, they must be loaded first.
+
+```{r echo = TRUE, message=FALSE}
 library(ggplot2)
 library(dplyr)
-
+library(reshape2)
 ```
 
-This is me loading the dataset and reducing to only the required Columns
-```{r echo = TRUE}
+### Load storm data into R
 
+Load the National Oceanic and Atmospheric Administration's (NOAA) storm data into R. The data are stored in a comma separated  value format, which is compressed with bz2. 
+
+All data are first read into a dataframe. The dataframe size is reduced by selecting only the columns required for the analysis. The dataframe size is further reduced by filtering rows containing all zero values (i.e. no fatality, injury, or damage values). 
+
+```{r echo = TRUE, cache=TRUE}
 fileHandle <- "repdata-data-StormData.csv.bz2"
 stormData <-read.csv(bzfile(fileHandle))
-data <- stormData
 
+# Reduce dataframe by selection only required follows and rows with non-zero values
 columnsRequired <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
 rowsRequired <- stormData$PROPDMG != 0 | stormData$CROPDMG != 0 | stormData$FATALITIES != 0 | stormData$INJURIES != 0
-#stormData <- subset(stormData, select=columnsRequired)
+
 stormData <- subset(stormData, rowsRequired, select=columnsRequired)
-
-
-# Used during draft only
-data2 <- stormData
-
-rm(columnsRequired)
-rm(rowsRequired)
-
 ```
 
+### Clean Event Type data
+
+The event type data are maintained in the EVTYPE column. The EVTYPE data contains a significant number of descriptions where different case was used. In addition, many similar event type descriptions are in the data. For example, hail is reported as 'HAIL 125', 'HAIL 150', 'HAIL 175', etc. 
+
+Event type data was homogenized to ensure significant of observations are not defused across a large number related categories. CAUTION: Subjective judgement was exercised to determine the level of similarity. For example, are 'flash floods' significantly different to a 'flood'?
 
 
-### Clean EVTYPE data
-The data in EVTYPE includes factor in mixed cases. Ceaning from the top down
+The Top 10 event types BEFORE cleaning the EVTYPE descriptions are:
 
 ```{r echo = TRUE}
-
 sort(table(stormData$EVTYPE),decreasing = TRUE)[1:10]
-# Factors 985
+```
 
+And the initial number of factor levels in EVTYPE are:
+
+```{r echo = TRUE}
+# Number of factor levels BEFORE cleaning data
+length(levels(stormData$EVTYPE))
+```
+
+The first step of cleaning the EVTYPE data was to convert all characters to UPPERCASE. The level of factors was reduced from 985 to 447 in this step.
+
+#### Converting to UPPERCASE
+Converting all EVTYPE descriptions in UPPERCASE reduced the number of factor levels to:
+
+```{r echo = TRUE}
 # Convert all EVTYPE value to UPPERCASE. This step reduces the EVTYPE factors by 
 stormData$EVTYPE <- as.factor(toupper(stormData$EVTYPE))
-# Factors 447
-
-
-# Next conitnue tidying the EVTYPE data by merging similar labels through the use of search and replace
-
-stormData$EVTYPE <- as.factor(sub(pattern = "TSTM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE , ignore.case = TRUE))
-
-stormData$EVTYPE <- as.factor(sub(pattern = "THUNDERSTORM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE , ignore.case = TRUE))
-
-stormData$EVTYPE <- as.factor(sub(pattern = "HAIL .*", replacement = "HAIL",stormData$EVTYPE , ignore.case = TRUE))
-
-stormData$EVTYPE <- as.factor(sub(pattern = "TORNADO .*", replacement = "TORNADO",stormData$EVTYPE , ignore.case = TRUE))
-
-stormData$EVTYPE <- as.factor(sub(pattern = "HIGH WIND.*", replacement = "HIGH WIND",stormData$EVTYPE , ignore.case = TRUE))
-
-#stormData$EVTYPE <- as.factor(sub(pattern = "STRONG WIND", replacement = "HIGH/STRONG WIND",stormData$EVTYPE , ignore.case = TRUE))
-
-sort(table(stormData$EVTYPE),decreasing = TRUE)[1:10]
-
-
+length(levels(stormData$EVTYPE))
 ```
 
-### Clean CROPDMGEXP and PROPDMGEXP data
+#### Further Grouping
+
+Further reduction was achieved through a limited number of character substitutions. An 80/20 approach was employed to apply the remaining groupings. The focus was on grouping variants that might affect the final Top 10 event type by occurrence.
 
 ```{r echo = TRUE}
+# Remove leading whitespace
+stormData$EVTYPE <- as.factor(sub(pattern = "^[ \t]+", replacement = "",stormData$EVTYPE))
 
+# Further reduce namespace
+stormData$EVTYPE <- as.factor(sub(pattern = "TSTM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE))
+stormData$EVTYPE <- as.factor(sub(pattern = "THUNDERSTORM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE))
+stormData$EVTYPE <- as.factor(sub(pattern = "HAIL .*", replacement = "HAIL",stormData$EVTYPE))
+stormData$EVTYPE <- as.factor(sub(pattern = "TORNADO .*", replacement = "TORNADO",stormData$EVTYPE))
+stormData$EVTYPE <- as.factor(sub(pattern = "HIGH WIND.*", replacement = "HIGH WIND",stormData$EVTYPE))
+```
+
+The Top 10 event types AFTER cleaning the EVTYPE descriptions are:
+
+```{r echo = TRUE}
+sort(table(stormData$EVTYPE),decreasing = TRUE)[1:10]
+```
+
+As a result, the number of factor levels AFTER cleaning the EVTYPE data are:
+
+```{r echo = TRUE}
+length(levels(stormData$EVTYPE))
+```
+
+
+### Calculate Property and Crop damage cost
+
+The property and crop damage data are each recorded in two component values. The first component records the damage estimate rounded to 3 significant digits and the second component reports the magnitude of the estimate. The magnitude describes the number of 0s behind the estimate. For example, a damage estimate of 7.23 with magnitude 4 equates to $72300.
+
+The magnitude data contains character data in addition to numerical values. These character values denote shorthand values for common magnitudes (e.g. k = 1,000, m = 1,000,000, etc.). Therefore, in order to create a single column for each type of damage estimate (i.e. crop and property), the characters values must be replaces.
+
+#### Property Damage
+The initial values for the property damage magnitude BEFORE cleaning data are:
+
+```{r echo = TRUE}
 table(stormData$PROPDMGEXP)
+```
+
+The follow substitutions are applied to the property damage magnitude data
+
+```{r echo = TRUE}
 stormData$PROPDMGEXP <- sub(pattern = "h", replacement = "2",stormData$PROPDMGEXP , ignore.case = TRUE)
 stormData$PROPDMGEXP <- sub(pattern = "k", replacement = "3",stormData$PROPDMGEXP , ignore.case = TRUE)
 stormData$PROPDMGEXP <- sub(pattern = "m", replacement = "6",stormData$PROPDMGEXP , ignore.case = TRUE)
 stormData$PROPDMGEXP <- sub(pattern = "b", replacement = "9",stormData$PROPDMGEXP , ignore.case = TRUE)
-stormData$PROPDMGEXP <- sub(pattern = "[^1-9]", replacement = "0",stormData$PROPDMGEXP , ignore.case = TRUE)
-stormData$PROPDMGEXP <- sub(pattern = "[?]", replacement = "0",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "[^1-9]", replacement = "0",stormData$PROPDMGEXP)
+stormData$PROPDMGEXP <- sub(pattern = "[?]", replacement = "0",stormData$PROPDMGEXP)
 stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
-table(stormData$PROPDMGEXP)
+```
 
+The resultant property damage magnitude data AFTER cleaning are:
+
+```{r echo = TRUE}
+table(stormData$PROPDMGEXP)
+```
+
+Final step is to calculate the new measure PROPDamage, which is the combination of the PROPDMG and PROPDMGEXP data.
+
+```{r echo = TRUE}
+stormData$PROPDamage <- stormData$PROPDMG * (10 ^ stormData$PROPDMGEXP)
+```
+
+#### Crop Damage
+The initial values for the crop damage magnitude BEFORE cleaning data are:
+
+```{r echo = TRUE}
 table(stormData$CROPDMGEXP)
+```
+
+The follow substitutions are applied to the crop damage magnitude data
+
+```{r echo = TRUE}
 stormData$CROPDMGEXP <- sub(pattern = "h", replacement = "2",stormData$CROPDMGEXP , ignore.case = TRUE)
 stormData$CROPDMGEXP <- sub(pattern = "k", replacement = "3",stormData$CROPDMGEXP , ignore.case = TRUE)
 stormData$CROPDMGEXP <- sub(pattern = "m", replacement = "6",stormData$CROPDMGEXP , ignore.case = TRUE)
 stormData$CROPDMGEXP <- sub(pattern = "b", replacement = "9",stormData$CROPDMGEXP , ignore.case = TRUE)
 stormData$CROPDMGEXP <- sub(pattern = "[^1-9]", replacement = "0",stormData$CROPDMGEXP , ignore.case = TRUE)
 stormData$CROPDMGEXP <- sub(pattern = "[?]", replacement = "0",stormData$CROPDMGEXP , ignore.case = TRUE)
-
 stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
-table(stormData$CROPDMGEXP)
-
-
 ```
 
-### Calculate Property and Crop damage cost
+The resultant crop damage magnitude data AFTER cleaning are:
+
+```{r echo = TRUE}
+table(stormData$CROPDMGEXP)
+```
+
+Final step is to calculate the new measure PROPDamage, which is the combination of the PROPDMG and PROPDMGEXP data.
+
 ```{r echo = TRUE}
 stormData$CROPDamage <- stormData$CROPDMG * (10 ^ stormData$CROPDMGEXP)
-stormData$PROPDamage <- stormData$PROPDMG * (10 ^ stormData$PROPDMGEXP)
-
-```
-
-
-### Aggregate Data
-
-```{r echo = TRUE}
-
-#fatalityData<- subset(stormData2, FATALITIES != 0)
-
-fatalityAggregateData <- aggregate(FATALITIES ~ EVTYPE, data = stormData, FUN = sum)
-
-x <- order(fatalityAggregateData$FATALITIES, decreasing = TRUE)[1:10]
-
-fatalityAggregateData[x,]
-
-
-
-#sort(x$FATALITIES, decreasing = TRUE)[1:5]
-
-
-
 ```
 
 ## Results
+### Analysis of Financal Impact
 
-### Plot People data
+In the dataset, crop and property values are maintained in unrelated columns. The damage estimates in these fields need to be merge, so that the total financial impact of each event type can be assessed. However, it is useful to maintain which measure the merged values is derived from. The *melt()* function reshape2 package is extremely useful for this purpose.
+
 ```{r echo = TRUE}
+damageData <- melt(data = stormData, id.vars = c("EVTYPE"), measure.vars = c("CROPDamage", "PROPDamage"), na.rm = TRUE)
+```
 
+Next the damage data are aggregated to the sum of all damage estimates versus event type and the estimate source (i.e. crop and property). 
+
+```{r echo = TRUE}
+totalDamageData <- aggregate(value ~ EVTYPE + variable, data=damageData, FUN = sum)
+```
+
+A review of the damage estimate data notes a mean of:
+
+```{r echo = TRUE}
+mean(totalDamageData$value)
+```
+
+The damage estimate data mean is used to select a minimum level significance for the data. The mean value is rounded down and only events resulting in damages of greater than $1,000,000,000 are maintained for further analysis.
+
+```{r echo = TRUE}
+# Mean is 1,092,286,179
+totalDamageData <- filter(totalDamageData, value > 1e9)
+```
+
+The resultant event types where either crop or property damage greater than 1 billion dollars are:
+
+```{r echo = TRUE}
+arrange(totalDamageData, desc(value))
+```
+
+The damage estimates for crop and property are illustrated on the below chart. It is evident from the chart that:
+
+1. The financial impact from property damage is higher than crops damage
+2. 'Flood' events have the highest financial impact of all event types
+3. 'Flood' events caused approximately $144 billion of property damage, which is the largest contributor to property damage. The next highest event type is 'HURRICANE/TYPHOON' at $69 billion.
+4. 'Drought' is the largest contributor to crop damage at almost $14 billion. This is more than twice the estimated damage to crops than from 'Flood' at $5.6 billion.
+
+IMPORTANT NOTE: The y-axis does not use a linear scale. A SQRT transformation is used to improve readability.
+
+```{r echo = TRUE}
+figure1 <- ggplot(totalDamageData, aes(x=EVTYPE, y=value/1e9, fill=variable)) + 
+    geom_bar(stat="identity") +
+    theme(axis.text.x = element_text(angle=90), plot.title = element_text(face="bold")) +
+    scale_x_discrete(name="Event Type") +
+    scale_y_sqrt(name = "Damage estimates in billions ($)") +
+    ggtitle("Crop and Property damage by Event Type")
+
+figure1
 
 ```
 
 
-### Plot People data
+### Calculate Human total
+Similar to the financial impact analysis, fatality and injury values are maintained in unrelated columns. As before, these data are merged to support the assessment of total human impact from each event type.
+
 ```{r echo = TRUE}
+humanData <- melt(data = stormData, id.vars = c("EVTYPE"), measure.vars = c("FATALITIES", "INJURIES"), na.rm = TRUE)
+```
+
+Next the human impact data are aggregated to sum all fatalities and injuries versus event type and the estimate source (i.e. crop and property). 
+
+An additional step is used for the human impact analysis. All zero values are filtered from the dataset before the mean is calculated. A much larger property of the human impact data has zero values than the damage data. Filtering the zero data results in a larger mean. However, this does not change the outcome of the analysis. The mean simply informs the decision to where the minimum threshold for reporting in our data.
+
+```{r echo = TRUE}
+totalHumanData <- aggregate(value ~ EVTYPE + variable, data=humanData, FUN = sum)
+totalHumanData <- filter(totalHumanData, value > 0) 
+```
+
+A review of the human impact data notes a mean of:
+
+```{r echo = TRUE}
+mean(totalHumanData$value)
+```
+
+The human impact data mean is used to select a minimum level significance for the data. The mean value is rounded and only events resulting in more than 550 fatalities or injuries are maintained for further analysis.
+
+```{r echo = TRUE}
+# Mean is 1,092,286,179
+totalHumanData <- filter(totalHumanData, value > 550) 
+```
+
+The resultant event types where either fatalities or injuries are greater than 550 are:
+
+```{r echo = TRUE}
+arrange(totalHumanData, desc(value))
+```
+
+The fatality and injury impacts are illustrated on the below chart. It is evident from the chart that:
+
+1. Injuries occur more often than fatalities
+2. 'Tornado' events are the leading cause of injuries and fatalities. 
+3. Injuries attributed to 'Tornado' are almost 10 times greater than the second largest category 'Thunderstorm Wind' 
+
+IMPORTANT NOTE: The y-axis does not use a linear scale. A SQRT transformation is used to improve readability.
+
+```{r echo = TRUE}
+
+
+figure2 <- ggplot(totalHumanData, aes(x=EVTYPE, y=value, fill=variable)) + 
+    geom_bar(stat="identity") +
+    theme(axis.text.x = element_text(angle=90), plot.title = element_text(face="bold")) +
+    scale_x_discrete(name="Event Type") +
+    scale_y_sqrt(name = "Injuries and Fatalities") +
+    #scale_y_continuous(name = "Injuries and Fatalities") +
+    ggtitle("Injuries and Fatalities by Event Type")
+
+figure2
 
 ```
 
-## Conclusion
-My conclusion based on the data are
 
 
