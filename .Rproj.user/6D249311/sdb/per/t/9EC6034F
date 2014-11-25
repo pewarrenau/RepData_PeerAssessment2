@@ -1,0 +1,17 @@
+{
+    "contents" : "\n#stormData$EVTYPE <- as.factor(sub(pattern = \"COASTALFLOOD.*\", replacement = \"COASTALFLOOD\",stormData$EVTYPE , ignore.case = TRUE))\n\n#stormData$EVTYPE <- as.factor(sub(pattern = \" \", replacement = \"\",stormData$EVTYPE , ignore.case = TRUE))\n\n#stormData$EVTYPE <- as.factor(sub(pattern = \"DRYMICROBURST .*\", replacement = \"DRYMICROBURST\",stormData$EVTYPE , ignore.case = TRUE))\n\n#stormData$EVTYPE <- as.factor(sub(pattern = \"HIGH WIND.*\", replacement = \"HIGH WIND\",stormData$EVTYPE , ignore.case = TRUE))\n\n#stormData$EVTYPE <- as.factor(sub(pattern = \"HURRICANE .*\", replacement = \"HURRICANE\",stormData$EVTYPE , ignore.case = TRUE))\n\n#stormData$EVTYPE <- as.factor(sub(pattern = \"WATERSPOUT.*\", replacement = \"WATERSPOUT\",stormData$EVTYPE , ignore.case = TRUE))\n",
+    "created" : 1416717075814.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3533114656",
+    "id" : "9EC6034F",
+    "lastKnownWriteTime" : 1416739081,
+    "path" : "H:/GitHub/RepData_PeerAssessment2/ScratchPad.R",
+    "project_path" : "ScratchPad.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}

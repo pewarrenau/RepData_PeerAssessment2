@@ -14,25 +14,144 @@ Here I write a brief summary of the analysis. What did I find?
 
 ## Data Processing
 How I loaded the data. Did I do anything to tidy it up?
-This is me loading the dataset
 
+### Load required Librarys
+The following library were used to analysis the data and produce this report. Hence, they must be loaded first.
+
+```{r echo = TRUE}
+library(knitr)
+#library(rmarkdown)
+library(ggplot2)
+library(dplyr)
+
+```
+
+This is me loading the dataset and reducing to only the required Columns
 ```{r echo = TRUE}
 
 fileHandle <- "repdata-data-StormData.csv.bz2"
-stormData <-read.csv(bzfile(fileHandle), header= TRUE, stringsAsFactors = TRUE )
+stormData <-read.csv(bzfile(fileHandle))
+data <- stormData
+
+columnsRequired <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+rowsRequired <- stormData$PROPDMG != 0 | stormData$CROPDMG != 0 | stormData$FATALITIES != 0 | stormData$INJURIES != 0
+#stormData <- subset(stormData, select=columnsRequired)
+stormData <- subset(stormData, rowsRequired, select=columnsRequired)
+
+
+# Used during draft only
+data2 <- stormData
+
+rm(columnsRequired)
+rm(rowsRequired)
+
+```
+
+
+
+### Clean EVTYPE data
+The data in EVTYPE includes factor in mixed cases. Ceaning from the top down
+
+```{r echo = TRUE}
+
+sort(table(stormData$EVTYPE),decreasing = TRUE)[1:10]
+# Factors 985
+
+# Convert all EVTYPE value to UPPERCASE. This step reduces the EVTYPE factors by 
+stormData$EVTYPE <- as.factor(toupper(stormData$EVTYPE))
+# Factors 447
+
+
+# Next conitnue tidying the EVTYPE data by merging similar labels through the use of search and replace
+
+stormData$EVTYPE <- as.factor(sub(pattern = "TSTM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE , ignore.case = TRUE))
+
+stormData$EVTYPE <- as.factor(sub(pattern = "THUNDERSTORM WIND.*", replacement = "THUNDERSTORM WIND",stormData$EVTYPE , ignore.case = TRUE))
+
+stormData$EVTYPE <- as.factor(sub(pattern = "HAIL .*", replacement = "HAIL",stormData$EVTYPE , ignore.case = TRUE))
+
+stormData$EVTYPE <- as.factor(sub(pattern = "TORNADO .*", replacement = "TORNADO",stormData$EVTYPE , ignore.case = TRUE))
+
+stormData$EVTYPE <- as.factor(sub(pattern = "HIGH WIND.*", replacement = "HIGH WIND",stormData$EVTYPE , ignore.case = TRUE))
+
+#stormData$EVTYPE <- as.factor(sub(pattern = "STRONG WIND", replacement = "HIGH/STRONG WIND",stormData$EVTYPE , ignore.case = TRUE))
+
+sort(table(stormData$EVTYPE),decreasing = TRUE)[1:10]
+
+
+```
+
+### Clean CROPDMGEXP and PROPDMGEXP data
+
+```{r echo = TRUE}
+
+table(stormData$PROPDMGEXP)
+stormData$PROPDMGEXP <- sub(pattern = "h", replacement = "2",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "k", replacement = "3",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "m", replacement = "6",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "b", replacement = "9",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "[^1-9]", replacement = "0",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- sub(pattern = "[?]", replacement = "0",stormData$PROPDMGEXP , ignore.case = TRUE)
+stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
+table(stormData$PROPDMGEXP)
+
+table(stormData$CROPDMGEXP)
+stormData$CROPDMGEXP <- sub(pattern = "h", replacement = "2",stormData$CROPDMGEXP , ignore.case = TRUE)
+stormData$CROPDMGEXP <- sub(pattern = "k", replacement = "3",stormData$CROPDMGEXP , ignore.case = TRUE)
+stormData$CROPDMGEXP <- sub(pattern = "m", replacement = "6",stormData$CROPDMGEXP , ignore.case = TRUE)
+stormData$CROPDMGEXP <- sub(pattern = "b", replacement = "9",stormData$CROPDMGEXP , ignore.case = TRUE)
+stormData$CROPDMGEXP <- sub(pattern = "[^1-9]", replacement = "0",stormData$CROPDMGEXP , ignore.case = TRUE)
+stormData$CROPDMGEXP <- sub(pattern = "[?]", replacement = "0",stormData$CROPDMGEXP , ignore.case = TRUE)
+
+stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
+table(stormData$CROPDMGEXP)
+
+
+```
+
+### Calculate Property and Crop damage cost
+```{r echo = TRUE}
+stormData$CROPDamage <- stormData$CROPDMG * (10 ^ stormData$CROPDMGEXP)
+stormData$PROPDamage <- stormData$PROPDMG * (10 ^ stormData$PROPDMGEXP)
+
+```
+
+
+### Aggregate Data
+
+```{r echo = TRUE}
+
+#fatalityData<- subset(stormData2, FATALITIES != 0)
+
+fatalityAggregateData <- aggregate(FATALITIES ~ EVTYPE, data = stormData, FUN = sum)
+
+x <- order(fatalityAggregateData$FATALITIES, decreasing = TRUE)[1:10]
+
+fatalityAggregateData[x,]
+
+
+
+#sort(x$FATALITIES, decreasing = TRUE)[1:5]
+
+
 
 ```
 
 ## Results
 
+### Plot People data
+```{r echo = TRUE}
 
 
-
-
-You can also embed plots, for example:
-
-```{r, echo = TRUE}
-plot(cars)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### Plot People data
+```{r echo = TRUE}
+
+```
+
+## Conclusion
+My conclusion based on the data are
+
+
